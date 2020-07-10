@@ -7,10 +7,224 @@
 
         <!-- Optional tags -->
         <title>Simple Categorized List Generator</title>
+
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+        <!-- Optional JavaScript -->
+        <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     </head>
 
     <body>
+
+        <div class="mx-3">
+            <h3>Category</h3>
+            <form>
+                <div class="form-group">
+                    <label for="categories">Select category (select one):</label>
+                    <select class="form-control" id="categories" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col-4">
+                        <div class="form-group">
+                            <label for="new-category">New Category</label>
+                            <input type="checkbox" id="enable-new-category">
+                            <input type="text" class="form-control" id="new-category" aria-describedby="helpId" placeholder="Input a category">
+                        </div>
+                    </div>
+
+                    <div class="col-4">
+                        <div class="form-group">
+                            <label for="title-name">Title Name</label>
+                            <input type="text" class="form-control" name="" id="title-name" aria-describedby="helpId" placeholder="Input a title name">
+                        </div>
+                    </div>
+                    
+                    <div class="col-4">
+                        <div class="form-group">
+                            <label for="download-url">Download URL</label>
+                            <input type="text" class="form-control" name="" id="download-url" aria-describedby="helpId" placeholder="Input a download link">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="button" id="submit-object" class="btn btn-sm btn-block btn-success">Submit</button>
+                    </div>
+                </div>
+            </form>
+
+        </div>
+
+        <main id="object-list" class="mx-3"></main>
+        <main id="categorizer"></main>
         
-    </boy>
+        <script>
+            $.fn.exists = function(){
+                return jQuery(this).length > 0;
+            };
+
+            $.fn.extend({
+                getPath: function () {
+                    var path, node = this;
+                    while (node.length) {
+                        var realNode = node[0], name = realNode.name;
+                        if (!name) break;
+                        name = name.toLowerCase();
+
+                        var parent = node.parent();
+
+                        var sameTagSiblings = parent.children(name);
+                        if (sameTagSiblings.length > 1) { 
+                            var allSiblings = parent.children();
+                            var index = allSiblings.index(realNode) + 1;
+                            if (index > 1) {
+                                name += ':nth-child(' + index + ')';
+                            }
+                        }
+
+                        path = name + (path ? '>' + path : '');
+                        node = parent;
+                    }
+
+                    return path;
+                }
+            });
+
+            function text2id(text) {
+                return (text !== null) ? text.toLowerCase().replace(/\W/g, '-') : "";
+            }
+
+            const changes = (function(children) {
+                // watch for change of child nodes of selector
+                // infinite looping 
+                function watcher(finite, selector, caller) {
+
+                    var pre = $(selector).children().length;
+                    let worker = setInterval(function() {
+                        let post = $(selector).children().length;
+
+                        if(pre !== post) {
+                            pre = post;
+                            (!finite) ? (true) : (function() {
+                                clearInterval(worker)
+                            })();
+
+                            caller( $(selector) )
+                        }
+                    }, 500)
+                }
+                
+                return {
+                    watcher: watcher,
+                    children: children,
+                }
+                
+            })(function(selector, caller) { 
+                return (selector) ? this.watcher(true, selector, caller) : undefined
+            })
+        
+            $('#categories')
+            // set create category radio to enabled when theirs no categories set
+            .ready(function() {
+                function checked(selector) {
+                    let hasCategories = $(selector).find(`option:not([value=""])`).length > 0
+                    
+                    if(hasCategories) $('#enable-new-category').prop('checked', false)
+                    else $('#enable-new-category').prop('checked', true)
+                }
+                checked( $(this) )
+                changes.children( '#categories', checked)
+            })
+            // on category select, set non-null option as active selection 
+            .change(function() {
+                console.log(`Category changed!`)
+                
+                let targVal = $(this).val()
+                $(this).find('option[selected="selected"]').attr('selected', false).end().find(`option[value="${ targVal }"]`).each(function() {
+                    ($(this).val()) ? $(this).attr('selected', true) : $(this).attr('selected', false)
+                })
+                
+                // ($(this).val()) ? $('#enable-new-category').prop('checked', true) : $('#enable-new-category').prop('checked', false)
+            });
+
+            class Categorizer {
+                constructor(selects, objects) {
+                    this.selects = selects;
+                    this.items = selects.find(`option:not([value=""])`)
+                    this.objects = objects
+                }
+
+                categories() {
+                    this.items = $(this.selects).find(`option:not([value=""])`)
+                    return this.items
+                }
+                get(id) {
+                    return (id) ? this.objects.find(`#${ id }`) : (function() {
+                        console.error('Categorizer.has function requires a valid id')
+                        return new Array()
+                    })();
+                }
+                has(id) {
+                    return this.get(id).length > 0
+                }
+                create(id, text) {
+                    this.selects.append([
+                        $('<option>').attr('value', id).text(text)
+                    ])
+                    return this.objects.append([
+                        $('<div>').attr('id', id).addClass('category').append([
+                            $('<h3>').text(text),
+                            $('<ul>')
+                        ])
+                    ]).find(`#${ id }`)
+                }
+                category(id, text) {
+                    return (this.has(id)) ? this.get(id) : this.create(id, text)
+                }
+                insert(category, node) {
+                    (!category) ? false : $(category).find('ul').append([
+                        $('<li>').append([
+                            node
+                        ])
+                    ])
+                }
+            }
+
+            const cater = new Categorizer( $('#categories'), $('#categorizer') )
+
+            $('#submit-object').each(function() {
+                $(this).click(function() {
+                    let id, text
+                    if($('#enable-new-category').prop('checked')) {
+                        text = $(`#new-category`).val()
+                        id = text2id( text )
+                    } else {
+                        if( !($('#categories option[selected="selected"]').length) ) return $('#categories').addClass('text-danger border-danger').removeClass('text-success border-success');
+                        else {
+                            $('#categories option[selected="selected"]').parent().addClass('text-success border-success').removeClass('text-danger border-danger').end().each(function() {
+                                text = $(this).text()
+                                id = $(this).val()
+                            })
+                        }
+                    }
+                    
+                    let category = $(`.category#${ id }`)
+                    category = (category.length) ? category : cater.create( id, text )
+
+                    cater.insert(category, 
+                        $('<a>').text( $('#title-name').val() ).attr('href', $('#download-url').val()).attr('target', '_blank')
+                    )
+                });
+            })
+            $('#submit-object').click()
+        </script>
+    </body>
 
 </html>
